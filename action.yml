@@ -1,5 +1,5 @@
 name: FixRelay
-description: "Turn security scanner findings into merge-risk summaries and AI-agent-ready fix prompts."
+description: "Score PR merge risk from scanner findings and generate AI fix prompts."
 inputs:
   run-semgrep:
     description: "Run Semgrep free audit automatically when no sarif or scanner-json inputs are provided."
