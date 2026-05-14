@@ -13,6 +13,72 @@ and writes:
 - `prompt.md`: standalone agent prompt bundle.
 - `summary.json`: risk, decision, finding count, and artifact paths.
 
+## Quick Start
+
+Create `.github/workflows/fixrelay.yml` in the repository you want to protect:
+
+```yaml
+name: FixRelay
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  fixrelay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Semgrep
+        run: python -m pip install semgrep
+
+      - name: Run Semgrep
+        run: semgrep scan --config auto --sarif --output semgrep.sarif || true
+
+      - name: Run FixRelay
+        uses: willwang0202/FixRelay@main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          sarif: semgrep.sarif
+          diff: origin/${{ github.base_ref }}...HEAD
+          scope: pr
+          fail-on: high
+          post-comment: true
+          protected-paths: |
+            auth/
+            billing/
+            infra/
+            .github/workflows/
+```
+
+This is the same setup tested against a private repository. On an empty PR,
+FixRelay posts a low-risk comment when Semgrep finds only pre-existing issues
+outside the PR diff. For production, prefer pinning `uses:` to a tag or commit
+SHA once you choose a stable FixRelay version.
+
+If the check passes but no PR comment appears, open the target repository's
+GitHub settings and confirm Actions can use read/write workflow permissions.
+FixRelay needs `issues: write` to create or update the PR comment.
+
+To check every scanner finding instead of only PR-relevant findings, change the
+FixRelay step to:
+
+```yaml
+with:
+  sarif: semgrep.sarif
+  diff: origin/${{ github.base_ref }}...HEAD
+  scope: entire-repo
+```
+
 ## Local Usage
 
 Run from this repository:
@@ -26,22 +92,9 @@ node bin/fixrelay.js generate \
   --fail-on never
 ```
 
-After publishing to npm, the same CLI can be run with:
-
-```bash
-npx fixrelay generate \
-  --sarif semgrep.sarif \
-  --diff origin/main...HEAD \
-  --out-dir fixrelay-out \
-  --fail-on high
-```
-
-Or installed into a project:
-
-```bash
-npm install --save-dev fixrelay
-npx fixrelay generate --sarif semgrep.sarif --diff origin/main...HEAD
-```
+FixRelay is not published to npm yet. In another local checkout, use the cloned
+repository path directly, or install from GitHub once you are ready to consume it
+as a dependency.
 
 ## CLI Options
 
@@ -71,7 +124,7 @@ finding in the scanner artifact, even when the finding is outside the PR diff.
 
 ## GitHub Action
 
-Run your scanners first, then run FixRelay:
+Run your scanners first, then run FixRelay. This is the tested workflow shape:
 
 ```yaml
 name: FixRelay
@@ -82,7 +135,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
   issues: write
 
 jobs:
@@ -93,11 +146,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Semgrep
+        run: python -m pip install semgrep
+
       - name: Run Semgrep
-        run: semgrep scan --sarif --output semgrep.sarif || true
+        run: semgrep scan --config auto --sarif --output semgrep.sarif || true
 
       - name: Run FixRelay
-        uses: your-org/FixRelay@v0
+        uses: willwang0202/FixRelay@main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           sarif: semgrep.sarif
           diff: origin/${{ github.base_ref }}...HEAD
