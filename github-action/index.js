@@ -142,7 +142,7 @@ function writeOutput(name, value, env = process.env) {
   fs.appendFileSync(env.GITHUB_OUTPUT, `${name}=${value}\n`, 'utf8');
 }
 
-async function runAction(env = process.env) {
+async function runAction(env = process.env, options = {}) {
   const inputs = parseActionInputs(env);
   const event = readEvent(env);
   const pullRequest = event.pull_request;
@@ -169,13 +169,18 @@ async function runAction(env = process.env) {
       throw new Error('post-comment requires GITHUB_TOKEN and GITHUB_REPOSITORY');
     }
     const report = fs.readFileSync(summary.artifacts.report, 'utf8');
-    await upsertPullRequestComment({
-      token,
-      repository,
-      issueNumber: pullRequest.number,
-      report,
-      apiUrl: env.GITHUB_API_URL
-    });
+    try {
+      await upsertPullRequestComment({
+        token,
+        repository,
+        issueNumber: pullRequest.number,
+        report,
+        apiUrl: env.GITHUB_API_URL,
+        request: options.request || githubRequest
+      });
+    } catch (error) {
+      process.stderr.write(`FixRelay warning: could not post PR comment: ${error.message}\n`);
+    }
   }
 
   if (riskMeetsFailOn(summary.risk.level, inputs.failOn)) {

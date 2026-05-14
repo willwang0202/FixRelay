@@ -182,3 +182,50 @@ test('runAction writes all artifact outputs when comment posting is disabled', a
   assert.match(output, /^findings=.*normalized-findings\.json$/m);
   assert.match(output, /^prompt=.*prompt\.md$/m);
 });
+
+test('runAction continues when PR comment posting is forbidden', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-action-comment-'));
+  const sarifPath = path.join(tmp, 'empty.sarif');
+  const outDir = path.join(tmp, 'out');
+  const outputPath = path.join(tmp, 'github-output');
+  const eventPath = path.join(tmp, 'event.json');
+
+  fs.writeFileSync(sarifPath, JSON.stringify({
+    version: '2.1.0',
+    runs: [
+      {
+        tool: { driver: { name: 'Semgrep', rules: [] } },
+        results: []
+      }
+    ]
+  }), 'utf8');
+  fs.writeFileSync(eventPath, JSON.stringify({
+    pull_request: {
+      number: 5,
+      title: 'Empty PR',
+      body: '',
+      base: { ref: 'main' }
+    }
+  }), 'utf8');
+
+  const summary = await runAction({
+    INPUT_SARIF: sarifPath,
+    INPUT_OUT_DIR: outDir,
+    INPUT_FAIL_ON: 'high',
+    INPUT_POST_COMMENT: 'true',
+    GITHUB_EVENT_PATH: eventPath,
+    GITHUB_OUTPUT: outputPath,
+    GITHUB_TOKEN: 'token',
+    GITHUB_REPOSITORY: 'owner/repo'
+  }, {
+    request: async (call) => {
+      if (call.method === 'GET') return [];
+      throw new Error('GitHub API POST failed with 403: Resource not accessible by integration');
+    }
+  });
+
+  assert.equal(summary.risk.level, 'low');
+  assert.equal(summary.shouldFail, false);
+  const output = fs.readFileSync(outputPath, 'utf8');
+  assert.match(output, /^risk=low$/m);
+});
