@@ -147,6 +147,66 @@ test('runFixRelay writes report, task JSON, and summary artifacts', () => {
   assert.equal(fs.existsSync(path.join(outDir, 'summary.json')), true);
 });
 
+test('runFixRelay focuses on PR-relevant findings by default', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-pr-scope-'));
+  const sarifPath = path.join(tmp, 'semgrep.sarif');
+  const diffPath = path.join(tmp, 'empty.diff');
+  const outDir = path.join(tmp, 'out');
+  fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
+  fs.writeFileSync(diffPath, '', 'utf8');
+
+  const summary = runFixRelay({
+    sarifPaths: [sarifPath],
+    diffFile: diffPath,
+    outDir,
+    failOn: 'high'
+  });
+
+  const report = fs.readFileSync(path.join(outDir, 'merge-risk-report.md'), 'utf8');
+  const prompt = fs.readFileSync(path.join(outDir, 'prompt.md'), 'utf8');
+  const normalized = JSON.parse(fs.readFileSync(path.join(outDir, 'normalized-findings.json'), 'utf8'));
+  const tasks = JSON.parse(fs.readFileSync(path.join(outDir, 'agent-fix-tasks.json'), 'utf8'));
+
+  assert.equal(summary.scope, 'pr');
+  assert.equal(summary.findingCount, 0);
+  assert.equal(summary.totalFindingCount, 1);
+  assert.equal(summary.risk.level, 'low');
+  assert.equal(summary.decision, 'allow');
+  assert.equal(summary.shouldFail, false);
+  assert.deepEqual(normalized, []);
+  assert.deepEqual(tasks, []);
+  assert.match(report, /No PR-relevant scanner findings/);
+  assert.match(prompt, /No PR-relevant scanner findings/);
+  assert.doesNotMatch(summary.risk.reasons.join('\n'), /Finding is in changed file/);
+});
+
+test('runFixRelay checks all scanner findings when scope is entire-repo', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-entire-scope-'));
+  const sarifPath = path.join(tmp, 'semgrep.sarif');
+  const diffPath = path.join(tmp, 'empty.diff');
+  const outDir = path.join(tmp, 'out');
+  fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
+  fs.writeFileSync(diffPath, '', 'utf8');
+
+  const summary = runFixRelay({
+    sarifPaths: [sarifPath],
+    diffFile: diffPath,
+    outDir,
+    failOn: 'high',
+    scope: 'entire-repo'
+  });
+
+  const normalized = JSON.parse(fs.readFileSync(path.join(outDir, 'normalized-findings.json'), 'utf8'));
+
+  assert.equal(summary.scope, 'entire-repo');
+  assert.equal(summary.findingCount, 1);
+  assert.equal(summary.totalFindingCount, 1);
+  assert.equal(summary.risk.level, 'high');
+  assert.equal(summary.shouldFail, true);
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].is_in_diff, false);
+});
+
 test('runFixRelay writes normalized findings and standalone prompt artifacts', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-structured-'));
   const sarif = sampleSarif();

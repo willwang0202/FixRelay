@@ -35,6 +35,7 @@ function parseActionInputs(env = process.env) {
     outDir: getInput(env, 'out-dir', 'fixrelay-out'),
     failOn: getInput(env, 'fail-on', 'never'),
     postComment: boolInput(getInput(env, 'post-comment'), true),
+    scope: getInput(env, 'scope') || undefined,
     packageManager: getInput(env, 'package-manager') || undefined
   };
 

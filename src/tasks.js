@@ -68,9 +68,9 @@ function taskPrompt(task) {
   ].join('\n');
 }
 
-function generatePromptBundle(tasks) {
+function generatePromptBundle(tasks, options = {}) {
   if (tasks.length === 0) {
-    return 'No scanner findings were loaded. Re-run FixRelay with SARIF or scanner JSON output to generate a fix prompt.';
+    return options.emptyMessage || 'No scanner findings were loaded. Re-run FixRelay with SARIF or scanner JSON output to generate a fix prompt.';
   }
 
   return tasks.map((task, index) => {

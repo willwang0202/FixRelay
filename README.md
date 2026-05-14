@@ -57,9 +57,17 @@ Common options:
 - `--diff-file <file>`: Saved unified diff.
 - `--out-dir <dir>`: Artifact directory. Defaults to `fixrelay-out`.
 - `--fail-on <level>`: `low`, `medium`, `high`, `critical`, or `never`.
+- `--scope <scope>`: `pr` or `entire-repo`. Defaults to `pr`.
 - `--pr-title <text>` and `--pr-body <text>`: PR context for the report.
 - `--protected-path <path>`: Protected path prefix. Can be repeated.
 - `--package-manager <pm>`: Validation hint source, such as `npm` or `go`.
+
+By default, FixRelay focuses on PR-relevant findings: scanner findings whose
+files appear in the provided diff. This prevents an empty PR from being blocked
+by unrelated pre-existing findings from a whole-repository scanner run.
+
+Use `--scope entire-repo` when you intentionally want FixRelay to evaluate every
+finding in the scanner artifact, even when the finding is outside the PR diff.
 
 ## GitHub Action
 
@@ -93,6 +101,7 @@ jobs:
         with:
           sarif: semgrep.sarif
           diff: origin/${{ github.base_ref }}...HEAD
+          scope: pr
           fail-on: high
           post-comment: true
           protected-paths: |
@@ -114,6 +123,16 @@ For local development of this repository, use:
 
 The action posts or updates a single PR comment identified by FixRelay markers,
 so repeated CI runs update the same comment.
+
+The action defaults to `scope: pr`, which only reports findings in changed
+files. To make FixRelay check the entire scanner result, set:
+
+```yaml
+with:
+  sarif: semgrep.sarif
+  diff: origin/${{ github.base_ref }}...HEAD
+  scope: entire-repo
+```
 
 Action outputs expose absolute paths to the generated artifacts:
 
@@ -153,6 +172,11 @@ FixRelay scores deterministic signals:
 - Missing test changes.
 - CI/CD workflow changes.
 - Dependency manifest or lockfile changes.
+
+In `pr` scope, only findings in changed files are scored, reported, and turned
+into agent tasks. In `entire-repo` scope, all loaded scanner findings are scored
+and reported; diff context is still used for changed-file and changed-line
+signals when available.
 
 Decisions:
 

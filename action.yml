@@ -29,6 +29,10 @@ inputs:
     description: "Whether to post or update a FixRelay PR comment."
     required: false
     default: 'true'
+  scope:
+    description: "Finding scope: pr for changed-file findings, or entire-repo for all scanner findings."
+    required: false
+    default: pr
   protected-paths:
     description: "Newline or comma separated protected path prefixes."
     required: false

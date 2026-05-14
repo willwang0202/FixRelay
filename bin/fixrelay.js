@@ -16,6 +16,7 @@ function usage() {
     '  --diff-file <file>      Unified diff file.',
     '  --out-dir <dir>         Artifact directory. Defaults to fixrelay-out.',
     '  --fail-on <level>       low, medium, high, critical, or never.',
+    '  --scope <scope>         pr or entire-repo. Defaults to pr.',
     '  --pr-title <text>       Pull request title for report context.',
     '  --pr-body <text>        Pull request body for report context.',
     '  --protected-path <path> Protected path prefix. Can be repeated.',
@@ -69,6 +70,9 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--fail-on') {
       options.failOn = readOption(args, index, arg);
+      index += 1;
+    } else if (arg === '--scope') {
+      options.scope = readOption(args, index, arg);
       index += 1;
     } else if (arg === '--pr-title') {
       options.prTitle = readOption(args, index, arg);

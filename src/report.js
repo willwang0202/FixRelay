@@ -8,6 +8,9 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     warn: 'This PR should be reviewed before merge.',
     block: 'This PR should not be merged until the security finding is fixed.'
   }[risk.decision];
+  const noFindingsText = options.scope === 'pr' && options.totalFindingCount > 0
+    ? 'No PR-relevant scanner findings were found in changed files.'
+    : 'No scanner findings were loaded. Re-run FixRelay with SARIF or scanner JSON output to generate a fix prompt.';
 
   const topFindings = findings.slice(0, 3).map((finding, index) => (
     `${index + 1}. ${titleCase(finding.severity)} - ${finding.title} (${finding.file || 'unknown file'}${finding.line ? `:${finding.line}` : ''})`
@@ -15,7 +18,7 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
 
   const prompt = tasks[0]
     ? taskPrompt(tasks[0])
-    : 'No scanner findings were loaded. Re-run FixRelay with SARIF or scanner JSON output to generate a fix prompt.';
+    : noFindingsText;
 
   const lines = [
     '<!-- fixrelay-comment:start -->',
@@ -29,8 +32,8 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     '## Why',
     ...risk.reasons.map((reason) => `- ${reason}`),
     '',
-    findings.length > 0 ? '## Top Findings' : '',
-    ...topFindings,
+    '## Top Findings',
+    ...(topFindings.length > 0 ? topFindings : [noFindingsText]),
     '',
     '## Recommended Action',
     risk.decision === 'allow'

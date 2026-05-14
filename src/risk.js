@@ -20,6 +20,7 @@ function riskLevel(score, findings) {
   if (score >= 100 || findings.some((finding) => finding.severity === 'critical')) {
     return 'critical';
   }
+  if (findings.some((finding) => finding.severity === 'high')) return 'high';
   if (score >= 70) return 'high';
   if (score >= 35) return 'medium';
   return 'low';
@@ -72,7 +73,11 @@ function scoreRisk(findings, diffContext, options = {}) {
   }
 
   if (findings.length === 0) {
-    reasons.push('No scanner findings were loaded');
+    if (options.scope === 'pr' && options.totalFindingCount > 0) {
+      reasons.push('No PR-relevant scanner findings were found in changed files');
+    } else {
+      reasons.push('No scanner findings were loaded');
+    }
   }
 
   const level = riskLevel(score, findings);

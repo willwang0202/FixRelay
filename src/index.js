@@ -16,7 +16,7 @@ const {
 } = require('./paths.js');
 const { generateReport } = require('./report.js');
 const { RISK_ORDER, scoreRisk, shouldFail, titleCase } = require('./risk.js');
-const { readDiff, readJsonFile, runFixRelay } = require('./runner.js');
+const { DEFAULT_SCOPE, normalizeScope, readDiff, readJsonFile, runFixRelay, selectFindingsForScope } = require('./runner.js');
 const {
   generateAgentTasks,
   generatePromptBundle,
@@ -26,6 +26,7 @@ const {
 
 module.exports = {
   DEFAULT_PROTECTED_PATHS,
+  DEFAULT_SCOPE,
   RISK_ORDER,
   annotateFindings,
   applyScannerFileFallback,
@@ -40,12 +41,14 @@ module.exports = {
   loadFindingsFromSarif,
   loadFindingsFromScannerJson,
   normalizePath,
+  normalizeScope,
   normalizeSeverity,
   parseUnifiedDiff,
   readDiff,
   readJsonFile,
   runFixRelay,
   scoreRisk,
+  selectFindingsForScope,
   serializeFinding,
   shouldFail,
   taskPrompt,

@@ -111,6 +111,37 @@ test('CLI generate exits non-zero when risk meets fail-on threshold', () => {
   assert.match(result.stderr, /FixRelay blocked merge/);
 });
 
+test('CLI generate checks all findings with entire-repo scope', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-cli-scope-'));
+  const { sarifPath, diffPath } = writeFixtureFiles(tmp);
+  fs.writeFileSync(diffPath, '', 'utf8');
+
+  const result = cp.spawnSync(process.execPath, [
+    'bin/fixrelay.js',
+    'generate',
+    '--sarif',
+    sarifPath,
+    '--diff-file',
+    diffPath,
+    '--out-dir',
+    path.join(tmp, 'out'),
+    '--scope',
+    'entire-repo',
+    '--fail-on',
+    'high'
+  ], {
+    cwd: path.join(__dirname, '..'),
+    encoding: 'utf8'
+  });
+
+  assert.equal(result.status, 1);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.scope, 'entire-repo');
+  assert.equal(summary.findingCount, 1);
+  assert.equal(summary.totalFindingCount, 1);
+  assert.equal(summary.shouldFail, true);
+});
+
 test('CLI generate reports configuration error for invalid fail-on threshold', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-cli-invalid-'));
   const { sarifPath, diffPath } = writeFixtureFiles(tmp);

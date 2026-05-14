@@ -36,6 +36,7 @@ test('parses action inputs from environment with repeated path lists', () => {
     INPUT_OUT_DIR: 'relay-out',
     INPUT_FAIL_ON: 'high',
     INPUT_POST_COMMENT: 'false',
+    INPUT_SCOPE: 'entire-repo',
     INPUT_PROTECTED_PATHS: 'auth/\nbilling/'
   };
 
@@ -48,6 +49,7 @@ test('parses action inputs from environment with repeated path lists', () => {
   assert.equal(inputs.outDir, 'relay-out');
   assert.equal(inputs.failOn, 'high');
   assert.equal(inputs.postComment, false);
+  assert.equal(inputs.scope, 'entire-repo');
 });
 
 test('evaluates fail-on threshold for action wrapper', () => {

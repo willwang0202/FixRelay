@@ -9,8 +9,30 @@ const { generateReport } = require('./report.js');
 const { scoreRisk, shouldFail } = require('./risk.js');
 const { generateAgentTasks, generatePromptBundle } = require('./tasks.js');
 
+const DEFAULT_SCOPE = 'pr';
+
 function readJsonFile(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function normalizeScope(scope = DEFAULT_SCOPE) {
+  const value = String(scope || DEFAULT_SCOPE).trim().toLowerCase();
+  if (value === 'pr' || value === 'pull-request' || value === 'pull_request') return 'pr';
+  if (
+    value === 'entire-repo' ||
+    value === 'entire_repo' ||
+    value === 'repository' ||
+    value === 'repo' ||
+    value === 'all'
+  ) {
+    return 'entire-repo';
+  }
+  throw new Error(`Invalid scope: ${scope}`);
+}
+
+function selectFindingsForScope(findings, diffContext, scope) {
+  if (scope === 'entire-repo') return findings;
+  return findings.filter((finding) => Boolean(finding.file && diffContext.changedFiles?.has(finding.file)));
 }
 
 function readDiff(options) {
@@ -37,6 +59,7 @@ function runFixRelay(options = {}) {
   const sarifPaths = options.sarifPaths || [];
   const scannerJsonPaths = options.scannerJsonPaths || [];
   const findings = [];
+  const scope = normalizeScope(options.scope);
 
   for (const sarifPath of sarifPaths) {
     findings.push(...loadFindingsFromSarif(readJsonFile(sarifPath), sarifPath));
@@ -45,20 +68,32 @@ function runFixRelay(options = {}) {
     findings.push(...loadFindingsFromScannerJson(readJsonFile(jsonPath), jsonPath));
   }
 
-  const diffContext = applyScannerFileFallback(parseUnifiedDiff(readDiff(options)), findings);
-  const risk = scoreRisk(findings, diffContext, {
-    protectedPaths: options.protectedPaths || DEFAULT_PROTECTED_PATHS
+  const hasExplicitDiff = Boolean(options.diffFile || options.diff);
+  let diffContext = parseUnifiedDiff(readDiff(options));
+  if (!hasExplicitDiff && scope === 'pr') {
+    diffContext = applyScannerFileFallback(diffContext, findings);
+  }
+  const scopedFindings = selectFindingsForScope(findings, diffContext, scope);
+  const risk = scoreRisk(scopedFindings, diffContext, {
+    protectedPaths: options.protectedPaths || DEFAULT_PROTECTED_PATHS,
+    scope,
+    totalFindingCount: findings.length
   });
-  const annotatedFindings = annotateFindings(findings, diffContext, risk);
+  const annotatedFindings = annotateFindings(scopedFindings, diffContext, risk);
+  const emptyPromptMessage = scope === 'pr' && findings.length > 0 && scopedFindings.length === 0
+    ? 'No PR-relevant scanner findings were found in changed files.'
+    : undefined;
   const tasks = generateAgentTasks(annotatedFindings, diffContext, risk, {
     cwd: options.cwd,
     packageManager: options.packageManager
   });
   const report = generateReport(annotatedFindings, diffContext, risk, tasks, {
     prTitle: options.prTitle,
-    prBody: options.prBody
+    prBody: options.prBody,
+    scope,
+    totalFindingCount: findings.length
   });
-  const prompt = generatePromptBundle(tasks);
+  const prompt = generatePromptBundle(tasks, { emptyMessage: emptyPromptMessage });
   const normalizedFindings = annotatedFindings.map(serializeFinding);
 
   const outDir = options.outDir || 'fixrelay-out';
@@ -70,7 +105,9 @@ function runFixRelay(options = {}) {
   const promptPath = path.join(outDir, 'prompt.md');
 
   const summary = {
-    findingCount: findings.length,
+    scope,
+    findingCount: scopedFindings.length,
+    totalFindingCount: findings.length,
     risk,
     decision: risk.decision,
     shouldFail: shouldFail(risk.level, options.failOn),
@@ -93,7 +130,10 @@ function runFixRelay(options = {}) {
 }
 
 module.exports = {
+  DEFAULT_SCOPE,
+  normalizeScope,
   readDiff,
   readJsonFile,
-  runFixRelay
+  runFixRelay,
+  selectFindingsForScope
 };
