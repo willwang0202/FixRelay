@@ -12,7 +12,17 @@ const { generateAgentTasks, generatePromptBundle } = require('./tasks.js');
 const DEFAULT_SCOPE = 'pr';
 
 function readJsonFile(file) {
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  let content;
+  try {
+    content = fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    throw new Error(`Cannot read file ${file}: ${error.message}`);
+  }
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    throw new Error(`Cannot parse JSON from ${file}: ${error.message}`);
+  }
 }
 
 function normalizeScope(scope = DEFAULT_SCOPE) {

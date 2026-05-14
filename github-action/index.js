@@ -82,7 +82,13 @@ function githubRequest({ method, urlPath, token, body, apiUrl = 'https://api.git
         data += chunk;
       });
       response.on('end', () => {
-        const parsed = data ? JSON.parse(data) : null;
+        let parsed = null;
+        try {
+          parsed = data ? JSON.parse(data) : null;
+        } catch {
+          reject(new Error(`GitHub API ${method} ${urlPath} returned non-JSON response (${response.statusCode})`));
+          return;
+        }
         if (response.statusCode >= 200 && response.statusCode < 300) {
           resolve(parsed);
         } else {
@@ -97,6 +103,23 @@ function githubRequest({ method, urlPath, token, body, apiUrl = 'https://api.git
   });
 }
 
+async function findExistingComment({ token, repository, issueNumber, apiUrl, request }) {
+  let page = 1;
+  while (true) {
+    const comments = await request({
+      method: 'GET',
+      urlPath: `/repos/${repository}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+      token,
+      apiUrl
+    });
+    if (!comments || comments.length === 0) return undefined;
+    const found = findExistingFixRelayComment(comments);
+    if (found) return found;
+    if (comments.length < 100) return undefined;
+    page += 1;
+  }
+}
+
 async function upsertPullRequestComment({
   token,
   repository,
@@ -105,14 +128,7 @@ async function upsertPullRequestComment({
   apiUrl,
   request = githubRequest
 }) {
-  const commentsPath = `/repos/${repository}/issues/${issueNumber}/comments?per_page=100`;
-  const comments = await request({
-    method: 'GET',
-    urlPath: commentsPath,
-    token,
-    apiUrl
-  });
-  const existing = findExistingFixRelayComment(comments || []);
+  const existing = await findExistingComment({ token, repository, issueNumber, apiUrl, request });
   if (existing) {
     return request({
       method: 'PATCH',

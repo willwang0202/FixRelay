@@ -108,6 +108,35 @@ test('upserts PR comment by creating one when no marker exists', async () => {
   assert.equal(calls[1].urlPath, '/repos/owner/repo/issues/5/comments');
 });
 
+test('paginates PR comments to find existing FixRelay marker beyond first page', async () => {
+  const calls = [];
+  const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, body: 'ordinary' }));
+  const page2 = [{ id: 200, body: `${FIXRELAY_COMMENT_MARKER}\nold report` }];
+
+  const request = async (call) => {
+    calls.push(call);
+    if (call.method === 'GET') {
+      return call.urlPath.includes('page=2') ? page2 : page1;
+    }
+    return { id: 200, body: call.body.body };
+  };
+
+  await upsertPullRequestComment({
+    token: 'token',
+    repository: 'owner/repo',
+    issueNumber: 5,
+    report: `${FIXRELAY_COMMENT_MARKER}\nnew report`,
+    request
+  });
+
+  const getCalls = calls.filter((c) => c.method === 'GET');
+  assert.equal(getCalls.length, 2);
+  assert.ok(getCalls[0].urlPath.includes('page=1'));
+  assert.ok(getCalls[1].urlPath.includes('page=2'));
+  assert.equal(calls.at(-1).method, 'PATCH');
+  assert.equal(calls.at(-1).urlPath, '/repos/owner/repo/issues/comments/200');
+});
+
 test('runAction writes all artifact outputs when comment posting is disabled', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-action-outputs-'));
   const sarifPath = path.join(tmp, 'semgrep.sarif');

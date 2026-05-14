@@ -56,16 +56,23 @@ function parseUnifiedDiff(diffText = '') {
 function applyScannerFileFallback(diffContext, findings) {
   if (diffContext.changedFiles.size > 0) return diffContext;
 
+  const changedFiles = new Set(diffContext.changedFiles);
+  const changedLinesByFile = new Map(diffContext.changedLinesByFile);
+
   for (const finding of findings) {
     if (!finding.file) continue;
-    diffContext.changedFiles.add(finding.file);
-    ensureLineSet(diffContext.changedLinesByFile, finding.file);
+    changedFiles.add(finding.file);
+    if (!changedLinesByFile.has(finding.file)) changedLinesByFile.set(finding.file, new Set());
   }
 
-  diffContext.hasTestChanges = [...diffContext.changedFiles].some(isTestPath);
-  diffContext.hasCiChanges = [...diffContext.changedFiles].some((file) => file.startsWith('.github/workflows/'));
-  diffContext.hasDependencyChanges = [...diffContext.changedFiles].some(isDependencyManifest);
-  return diffContext;
+  return {
+    ...diffContext,
+    changedFiles,
+    changedLinesByFile,
+    hasTestChanges: [...changedFiles].some(isTestPath),
+    hasCiChanges: [...changedFiles].some((file) => file.startsWith('.github/workflows/')),
+    hasDependencyChanges: [...changedFiles].some(isDependencyManifest)
+  };
 }
 
 function annotateFindings(findings, diffContext, risk) {
