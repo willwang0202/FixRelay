@@ -1,0 +1,8 @@
+diff --git a/auth/reset.js b/auth/reset.js
+index 1111111..2222222 100644
+--- a/auth/reset.js
++++ b/auth/reset.js
+@@ -10,0 +11,3 @@ function reset(req, res) {
++  const next = req.query.next;
++  res.send(next);
++}

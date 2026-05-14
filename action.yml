@@ -1,0 +1,59 @@
+name: FixRelay
+description: Turn security scanner findings into merge-risk summaries and AI-agent-ready fix prompts.
+inputs:
+  sarif:
+    description: Newline or comma separated SARIF files to load.
+    required: false
+    default: ''
+  scanner-json:
+    description: Newline or comma separated generic scanner JSON files to load.
+    required: false
+    default: ''
+  diff:
+    description: Git diff range, such as origin/main...HEAD.
+    required: false
+    default: ''
+  diff-file:
+    description: Path to a saved unified diff file.
+    required: false
+    default: ''
+  out-dir:
+    description: Directory where FixRelay artifacts are written.
+    required: false
+    default: fixrelay-out
+  fail-on:
+    description: Risk threshold that fails the check: low, medium, high, critical, or never.
+    required: false
+    default: high
+  post-comment:
+    description: Whether to post or update a FixRelay PR comment.
+    required: false
+    default: 'true'
+  protected-paths:
+    description: Newline or comma separated protected path prefixes.
+    required: false
+    default: |
+      auth/
+      billing/
+      infra/
+      .github/workflows/
+  package-manager:
+    description: Package manager for validation command hints.
+    required: false
+    default: ''
+outputs:
+  risk:
+    description: Calculated merge risk level.
+  decision:
+    description: Merge decision: allow, warn, or block.
+  report:
+    description: Absolute path to merge-risk-report.md.
+  tasks:
+    description: Absolute path to agent-fix-tasks.json.
+  findings:
+    description: Absolute path to normalized-findings.json.
+  prompt:
+    description: Absolute path to prompt.md.
+runs:
+  using: node20
+  main: github-action/index.js

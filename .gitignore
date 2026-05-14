@@ -1,0 +1,19 @@
+node_modules/
+fixrelay-out/
+tmp/
+coverage/
+.DS_Store
+
+# Private business strategy, market research, and design-planning files.
+CONSTITUTION.md
+ResearchReport.md
+codex.md
+docs/superpowers/
+
+# Local environment and secret material.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.crt

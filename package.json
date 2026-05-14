@@ -1,0 +1,31 @@
+{
+  "name": "fixrelay",
+  "version": "0.1.0",
+  "description": "Turn security scanner findings into merge-risk summaries and AI-agent-ready fix prompts.",
+  "main": "src/index.js",
+  "bin": {
+    "fixrelay": "bin/fixrelay.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "security",
+    "sarif",
+    "github-action",
+    "ai-agent",
+    "pull-request"
+  ],
+  "author": "",
+  "license": "BUSL-1.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "src",
+    "bin",
+    "github-action",
+    "action.yml",
+    "README.md"
+  ]
+}
