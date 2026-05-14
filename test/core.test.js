@@ -124,7 +124,7 @@ test('generates PR report and agent task JSON with validation guidance', () => {
   assert.match(report, /auth\/reset\.js/);
 });
 
-test('runFixRelay writes report, task JSON, and summary artifacts', () => {
+test('runFixRelay writes report, task JSON, and summary artifacts', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-core-'));
   const sarifPath = path.join(tmp, 'semgrep.sarif');
   const diffPath = path.join(tmp, 'pr.diff');
@@ -132,7 +132,7 @@ test('runFixRelay writes report, task JSON, and summary artifacts', () => {
   fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
   fs.writeFileSync(diffPath, sampleDiff(), 'utf8');
 
-  const summary = runFixRelay({
+  const summary = await runFixRelay({
     sarifPaths: [sarifPath],
     diffFile: diffPath,
     outDir,
@@ -147,7 +147,7 @@ test('runFixRelay writes report, task JSON, and summary artifacts', () => {
   assert.equal(fs.existsSync(path.join(outDir, 'summary.json')), true);
 });
 
-test('runFixRelay focuses on PR-relevant findings by default', () => {
+test('runFixRelay focuses on PR-relevant findings by default', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-pr-scope-'));
   const sarifPath = path.join(tmp, 'semgrep.sarif');
   const diffPath = path.join(tmp, 'empty.diff');
@@ -155,7 +155,7 @@ test('runFixRelay focuses on PR-relevant findings by default', () => {
   fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
   fs.writeFileSync(diffPath, '', 'utf8');
 
-  const summary = runFixRelay({
+  const summary = await runFixRelay({
     sarifPaths: [sarifPath],
     diffFile: diffPath,
     outDir,
@@ -180,7 +180,7 @@ test('runFixRelay focuses on PR-relevant findings by default', () => {
   assert.doesNotMatch(summary.risk.reasons.join('\n'), /Finding is in changed file/);
 });
 
-test('runFixRelay checks all scanner findings when scope is entire-repo', () => {
+test('runFixRelay checks all scanner findings when scope is entire-repo', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-entire-scope-'));
   const sarifPath = path.join(tmp, 'semgrep.sarif');
   const diffPath = path.join(tmp, 'empty.diff');
@@ -188,7 +188,7 @@ test('runFixRelay checks all scanner findings when scope is entire-repo', () => 
   fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
   fs.writeFileSync(diffPath, '', 'utf8');
 
-  const summary = runFixRelay({
+  const summary = await runFixRelay({
     sarifPaths: [sarifPath],
     diffFile: diffPath,
     outDir,
@@ -207,7 +207,7 @@ test('runFixRelay checks all scanner findings when scope is entire-repo', () => 
   assert.equal(normalized[0].is_in_diff, false);
 });
 
-test('runFixRelay writes normalized findings and standalone prompt artifacts', () => {
+test('runFixRelay writes normalized findings and standalone prompt artifacts', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-structured-'));
   const sarif = sampleSarif();
   sarif.runs[0].tool.driver.rules[0].helpUri = 'https://semgrep.dev/r/xss';
@@ -221,7 +221,7 @@ test('runFixRelay writes normalized findings and standalone prompt artifacts', (
   fs.writeFileSync(sarifPath, JSON.stringify(sarif), 'utf8');
   fs.writeFileSync(diffPath, sampleDiff(), 'utf8');
 
-  const summary = runFixRelay({
+  const summary = await runFixRelay({
     sarifPaths: [sarifPath],
     diffFile: diffPath,
     outDir,
@@ -257,13 +257,13 @@ test('rejects invalid fail-on thresholds instead of treating them as blocking', 
   );
 });
 
-test('uses scanner file paths as changed-file fallback when diff context is unavailable', () => {
+test('uses scanner file paths as changed-file fallback when diff context is unavailable', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-no-diff-'));
   const sarifPath = path.join(tmp, 'semgrep.sarif');
   const outDir = path.join(tmp, 'out');
   fs.writeFileSync(sarifPath, JSON.stringify(sampleSarif()), 'utf8');
 
-  const summary = runFixRelay({
+  const summary = await runFixRelay({
     sarifPaths: [sarifPath],
     cwd: tmp,
     outDir,

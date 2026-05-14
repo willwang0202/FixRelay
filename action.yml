@@ -45,6 +45,26 @@ inputs:
     description: "Package manager for validation command hints."
     required: false
     default: ''
+  llm-review:
+    description: "Enable optional LLM triage pass. Requires llm-endpoint, llm-model, and LLM_API_KEY env var."
+    required: false
+    default: 'false'
+  llm-endpoint:
+    description: "OpenAI-compatible endpoint base URL, such as https://api.anthropic.com or a LiteLLM proxy."
+    required: false
+    default: ''
+  llm-model:
+    description: "Model name to pass to the endpoint, such as claude-sonnet-4-6 or gpt-4o-mini."
+    required: false
+    default: ''
+  llm-timeout-ms:
+    description: "Milliseconds before the LLM call times out. Defaults to 20000."
+    required: false
+    default: '20000'
+  llm-max-snippet-lines:
+    description: "Maximum lines of code to include per finding in the LLM prompt. Defaults to 40."
+    required: false
+    default: '40'
 outputs:
   risk:
     description: "Calculated merge risk level."
@@ -58,6 +78,8 @@ outputs:
     description: "Absolute path to normalized-findings.json."
   prompt:
     description: "Absolute path to prompt.md."
+  llm-review-artifact:
+    description: "Absolute path to llm-review.json. Only set when llm-review is true and the call succeeds."
 branding:
   icon: shield
   color: red

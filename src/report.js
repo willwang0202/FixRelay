@@ -1,6 +1,28 @@
 const { taskPrompt } = require('./tasks.js');
 const { titleCase } = require('./risk.js');
 
+function renderLlmTriageSection(llmReview) {
+  if (!llmReview?.ran) return [];
+  const { status, model, review } = llmReview;
+  if (status === 'failed' || !review) {
+    return ['## LLM Triage', '', `LLM review unavailable (${review?.error || 'unknown error'}); deterministic risk used.`, ''];
+  }
+  const { summary, downgrade } = review;
+  const lines = [
+    '## LLM Triage',
+    '',
+    `Model: ${model}`,
+    `Findings reviewed: ${summary.totalReviewed} — ${summary.truePositive} true positive, ${summary.falsePositive} false positive, ${summary.uncertain} uncertain`
+  ];
+  if (downgrade?.applied) {
+    lines.push(`Risk downgraded: ${downgrade.from_level} → ${downgrade.to_level} (all findings classified as false positives)`);
+  } else {
+    lines.push('No downgrade applied.');
+  }
+  lines.push('');
+  return lines;
+}
+
 function generateReport(findings, diffContext, risk, tasks, options = {}) {
   const heading = `Merge Risk: ${titleCase(risk.level)}`;
   const decisionText = {
@@ -32,6 +54,7 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     '## Why',
     ...risk.reasons.map((reason) => `- ${reason}`),
     '',
+    ...renderLlmTriageSection(options.llmReview),
     '## Top Findings',
     ...(topFindings.length > 0 ? topFindings : [noFindingsText]),
     '',

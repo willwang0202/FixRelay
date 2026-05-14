@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const { annotateFindings, applyScannerFileFallback, parseUnifiedDiff } = require('./diff.js');
 const { loadFindingsFromSarif, loadFindingsFromScannerJson, serializeFinding } = require('./findings.js');
+const { runLlmReview } = require('./llm/review.js');
 const { DEFAULT_PROTECTED_PATHS } = require('./paths.js');
 const { generateReport } = require('./report.js');
 const { scoreRisk, shouldFail } = require('./risk.js');
@@ -65,7 +66,7 @@ function readDiff(options) {
   }
 }
 
-function runFixRelay(options = {}) {
+async function runFixRelay(options = {}) {
   const sarifPaths = options.sarifPaths || [];
   const scannerJsonPaths = options.scannerJsonPaths || [];
   const findings = [];
@@ -84,11 +85,39 @@ function runFixRelay(options = {}) {
     diffContext = applyScannerFileFallback(diffContext, findings);
   }
   const scopedFindings = selectFindingsForScope(findings, diffContext, scope);
-  const risk = scoreRisk(scopedFindings, diffContext, {
+  let risk = scoreRisk(scopedFindings, diffContext, {
     protectedPaths: options.protectedPaths || DEFAULT_PROTECTED_PATHS,
     scope,
     totalFindingCount: findings.length
   });
+
+  const outDir = options.outDir || 'fixrelay-out';
+  fs.mkdirSync(outDir, { recursive: true });
+
+  let llmReviewResult = null;
+  if (options.llmReview && options.llmEndpoint && options.llmModel && options.llmApiKey) {
+    llmReviewResult = await runLlmReview({
+      findings: scopedFindings,
+      risk,
+      options: {
+        endpoint: options.llmEndpoint,
+        model: options.llmModel,
+        apiKey: options.llmApiKey,
+        timeoutMs: options.llmTimeoutMs,
+        maxSnippetLines: options.llmMaxSnippetLines,
+        prTitle: options.prTitle
+      },
+      cwd: options.cwd || process.cwd(),
+      httpClient: options._httpClient
+    });
+    risk = llmReviewResult.downgradedRisk;
+    if (llmReviewResult.status === 'failed') {
+      process.stderr.write(`FixRelay warning: LLM review failed (${llmReviewResult.review?.error}); using deterministic risk.\n`);
+    }
+  } else if (options.llmReview) {
+    process.stderr.write('FixRelay warning: llm-review enabled but llm-endpoint, llm-model, or LLM_API_KEY is missing; skipping LLM review.\n');
+  }
+
   const annotatedFindings = annotateFindings(scopedFindings, diffContext, risk);
   const emptyPromptMessage = scope === 'pr' && findings.length > 0 && scopedFindings.length === 0
     ? 'No PR-relevant scanner findings were found in changed files.'
@@ -101,18 +130,25 @@ function runFixRelay(options = {}) {
     prTitle: options.prTitle,
     prBody: options.prBody,
     scope,
-    totalFindingCount: findings.length
+    totalFindingCount: findings.length,
+    llmReview: llmReviewResult
   });
   const prompt = generatePromptBundle(tasks, { emptyMessage: emptyPromptMessage });
   const normalizedFindings = annotatedFindings.map(serializeFinding);
 
-  const outDir = options.outDir || 'fixrelay-out';
-  fs.mkdirSync(outDir, { recursive: true });
   const reportPath = path.join(outDir, 'merge-risk-report.md');
   const tasksPath = path.join(outDir, 'agent-fix-tasks.json');
   const summaryPath = path.join(outDir, 'summary.json');
   const findingsPath = path.join(outDir, 'normalized-findings.json');
   const promptPath = path.join(outDir, 'prompt.md');
+
+  const artifacts = { report: reportPath, tasks: tasksPath, summary: summaryPath, findings: findingsPath, prompt: promptPath };
+
+  if (llmReviewResult?.review) {
+    const llmReviewPath = path.join(outDir, 'llm-review.json');
+    fs.writeFileSync(llmReviewPath, `${JSON.stringify(llmReviewResult.review, null, 2)}\n`, 'utf8');
+    artifacts.llmReview = llmReviewPath;
+  }
 
   const summary = {
     scope,
@@ -121,13 +157,7 @@ function runFixRelay(options = {}) {
     risk,
     decision: risk.decision,
     shouldFail: shouldFail(risk.level, options.failOn),
-    artifacts: {
-      report: reportPath,
-      tasks: tasksPath,
-      summary: summaryPath,
-      findings: findingsPath,
-      prompt: promptPath
-    }
+    artifacts
   };
 
   fs.writeFileSync(reportPath, report, 'utf8');

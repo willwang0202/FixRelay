@@ -242,6 +242,89 @@ Decisions:
 - `warn`: medium risk.
 - `block`: high or critical risk.
 
+## Optional LLM Review
+
+FixRelay can run an optional LLM triage pass after the deterministic scoring step.
+The LLM reads the actual code snippets around each finding and classifies each one
+as `true_positive`, `false_positive`, or `uncertain`. If **all** findings are
+classified as false positives, the risk level is downgraded by one step
+(`critical→high`, `high→medium`, `medium→low`). The LLM can never upgrade risk —
+only downgrade it.
+
+### Inputs
+
+| Input | Description |
+|---|---|
+| `llm-review` | Set to `true` to enable. Default: `false`. |
+| `llm-endpoint` | OpenAI-compatible base URL. Works with LiteLLM proxies. |
+| `llm-model` | Model name passed to the endpoint, e.g. `claude-sonnet-4-6`, `gpt-4o-mini`. |
+| `llm-timeout-ms` | Milliseconds before the call times out. Default: `20000`. |
+| `llm-max-snippet-lines` | Lines of code included per finding. Default: `40`. |
+
+Pass your API key as `LLM_API_KEY` in the environment — never as an action input.
+
+### Example workflow
+
+```yaml
+- name: Run FixRelay with LLM triage
+  uses: willwang0202/FixRelay@v0
+  id: fixrelay
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+    LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+  with:
+    sarif: semgrep.sarif
+    diff: origin/${{ github.base_ref }}...HEAD
+    llm-review: true
+    llm-endpoint: https://api.anthropic.com
+    llm-model: claude-haiku-4-5-20251001
+```
+
+To use a LiteLLM proxy (for on-prem inference or provider-neutral routing):
+
+```yaml
+    llm-endpoint: https://your-litellm-proxy.internal
+    llm-model: ollama/codellama
+```
+
+### Behavior on failure
+
+If the LLM call times out, returns a non-200 status, or produces a response that
+cannot be parsed, FixRelay logs a warning and falls back to the deterministic risk
+score. The `llm-review.json` artifact is still written with `"status": "failed"` so
+you can inspect the error.
+
+### New artifact: `llm-review.json`
+
+```json
+{
+  "status": "ok",
+  "model": "claude-haiku-4-5-20251001",
+  "endpoint_host": "api.anthropic.com",
+  "elapsed_ms": 1432,
+  "summary": {
+    "total_reviewed": 2,
+    "true_positive": 0,
+    "false_positive": 2,
+    "uncertain": 0,
+    "all_false_positive": true
+  },
+  "downgrade": { "applied": true, "from_level": "high", "to_level": "medium" },
+  "verdicts": [
+    { "finding_id": "...", "verdict": "false_positive", "rationale": "Constant value, not user-controlled." }
+  ]
+}
+```
+
+The artifact path is exposed as the `llm-review-artifact` action output.
+
+### Downgrade-only design
+
+The LLM triage layer can only reduce the risk score, never raise it. This prevents
+a hallucinated `true_positive` from blocking a PR that the deterministic layer
+already cleared. If you need the LLM to catch issues the scanner missed, run it as
+a separate step and evaluate its output independently.
+
 ## Limitations
 
 - **FixRelay is not a scanner.** It reads existing scanner artifacts (SARIF,
@@ -261,8 +344,13 @@ Decisions:
 
 FixRelay is local-first. It reads local scanner outputs and git diff context,
 writes local artifacts, and only sends data to GitHub when `post-comment: true`
-is enabled inside GitHub Actions. It does not ingest a full codebase, call a
-hosted model, train on code, or store source code.
+is enabled inside GitHub Actions. It does not ingest a full codebase, train on
+code, or store source code.
+
+LLM review is **opt-in and disabled by default**. When enabled, code snippets
+around each finding are sent to the configured `llm-endpoint`. If your code is
+sensitive, self-host a LiteLLM proxy pointing at a local model rather than
+routing snippets to a public API.
 
 ## License
 

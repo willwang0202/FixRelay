@@ -21,8 +21,13 @@ function usage() {
     '  --pr-body <text>        Pull request body for report context.',
     '  --protected-path <path> Protected path prefix. Can be repeated.',
     '  --package-manager <pm>  npm, pnpm, yarn, python, go, or generic.',
-    '  --post-comment         Post report with gh pr comment when available.',
-    '  --help                 Show this help text.'
+    '  --post-comment          Post report with gh pr comment when available.',
+    '  --llm-review            Enable LLM triage pass (requires LLM_API_KEY env var).',
+    '  --llm-endpoint <url>    OpenAI-compatible endpoint base URL.',
+    '  --llm-model <name>      Model name to pass to the endpoint.',
+    '  --llm-timeout-ms <ms>   LLM call timeout in milliseconds. Defaults to 20000.',
+    '  --llm-max-snippet-lines <n>  Max code lines per finding. Defaults to 40.',
+    '  --help                  Show this help text.'
   ].join('\n');
 }
 
@@ -88,6 +93,20 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--post-comment') {
       options.postComment = true;
+    } else if (arg === '--llm-review') {
+      options.llmReview = true;
+    } else if (arg === '--llm-endpoint') {
+      options.llmEndpoint = readOption(args, index, arg);
+      index += 1;
+    } else if (arg === '--llm-model') {
+      options.llmModel = readOption(args, index, arg);
+      index += 1;
+    } else if (arg === '--llm-timeout-ms') {
+      options.llmTimeoutMs = Number(readOption(args, index, arg));
+      index += 1;
+    } else if (arg === '--llm-max-snippet-lines') {
+      options.llmMaxSnippetLines = Number(readOption(args, index, arg));
+      index += 1;
     } else if (arg === '--help' || arg === '-h') {
       options.help = true;
     } else {
@@ -111,7 +130,7 @@ function postCommentWithGh(reportPath) {
   });
 }
 
-function main() {
+async function main() {
   try {
     const options = parseArgs(process.argv);
     if (options.help) {
@@ -119,7 +138,11 @@ function main() {
       return 0;
     }
 
-    const summary = runFixRelay(options);
+    if (options.llmReview && process.env.LLM_API_KEY) {
+      options.llmApiKey = process.env.LLM_API_KEY;
+    }
+
+    const summary = await runFixRelay(options);
     process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
 
     if (options.postComment) {
@@ -138,7 +161,7 @@ function main() {
 }
 
 if (require.main === module) {
-  process.exitCode = main();
+  main().then((code) => { process.exitCode = code; });
 }
 
 module.exports = {

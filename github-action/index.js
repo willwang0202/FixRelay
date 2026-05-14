@@ -27,6 +27,7 @@ function getInput(env, name, fallback = '') {
 
 function parseActionInputs(env = process.env) {
   const protectedPaths = splitList(getInput(env, 'protected-paths'));
+  const llmReview = boolInput(getInput(env, 'llm-review'), false);
   const options = {
     sarifPaths: splitList(getInput(env, 'sarif')),
     scannerJsonPaths: splitList(getInput(env, 'scanner-json')),
@@ -36,8 +37,17 @@ function parseActionInputs(env = process.env) {
     failOn: getInput(env, 'fail-on', 'never'),
     postComment: boolInput(getInput(env, 'post-comment'), true),
     scope: getInput(env, 'scope') || undefined,
-    packageManager: getInput(env, 'package-manager') || undefined
+    packageManager: getInput(env, 'package-manager') || undefined,
+    llmReview,
+    llmEndpoint: getInput(env, 'llm-endpoint') || undefined,
+    llmModel: getInput(env, 'llm-model') || undefined,
+    llmTimeoutMs: Number(getInput(env, 'llm-timeout-ms') || 20000),
+    llmMaxSnippetLines: Number(getInput(env, 'llm-max-snippet-lines') || 40)
   };
+
+  if (llmReview && env.LLM_API_KEY) {
+    options.llmApiKey = env.LLM_API_KEY;
+  }
 
   if (protectedPaths.length > 0) {
     options.protectedPaths = protectedPaths;
@@ -171,13 +181,16 @@ async function runAction(env = process.env, options = {}) {
   inputs.prTitle = pullRequest?.title || event.issue?.title || '';
   inputs.prBody = pullRequest?.body || event.issue?.body || '';
 
-  const summary = runFixRelay(inputs);
+  const summary = await runFixRelay(inputs);
   writeOutput('risk', summary.risk.level, env);
   writeOutput('decision', summary.decision, env);
   writeOutput('report', path.resolve(summary.artifacts.report), env);
   writeOutput('tasks', path.resolve(summary.artifacts.tasks), env);
   writeOutput('findings', path.resolve(summary.artifacts.findings), env);
   writeOutput('prompt', path.resolve(summary.artifacts.prompt), env);
+  if (summary.artifacts.llmReview) {
+    writeOutput('llm-review-artifact', path.resolve(summary.artifacts.llmReview), env);
+  }
 
   if (inputs.postComment && pullRequest?.number) {
     const token = env.GITHUB_TOKEN;

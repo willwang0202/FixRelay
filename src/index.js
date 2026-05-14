@@ -1,4 +1,10 @@
 const { annotateFindings, applyScannerFileFallback, parseUnifiedDiff } = require('./diff.js');
+const { callChatCompletion } = require('./llm/client.js');
+const { downgradeRisk } = require('./llm/downgrade.js');
+const { parseLlmReview } = require('./llm/parser.js');
+const { buildReviewMessages } = require('./llm/prompt.js');
+const { runLlmReview, summarizeVerdicts } = require('./llm/review.js');
+const { readSnippet } = require('./llm/snippet.js');
 const {
   loadFindingsFromSarif,
   loadFindingsFromScannerJson,
@@ -30,6 +36,9 @@ module.exports = {
   RISK_ORDER,
   annotateFindings,
   applyScannerFileFallback,
+  buildReviewMessages,
+  callChatCompletion,
+  downgradeRisk,
   generateAgentTasks,
   generatePromptBundle,
   generateReport,
@@ -43,14 +52,18 @@ module.exports = {
   normalizePath,
   normalizeScope,
   normalizeSeverity,
+  parseLlmReview,
   parseUnifiedDiff,
   readDiff,
   readJsonFile,
+  readSnippet,
   runFixRelay,
+  runLlmReview,
   scoreRisk,
   selectFindingsForScope,
   serializeFinding,
   shouldFail,
+  summarizeVerdicts,
   taskPrompt,
   titleCase,
   validationCommands
