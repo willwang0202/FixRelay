@@ -503,7 +503,8 @@ test('runFixRelay without llmReview produces unchanged artifacts', async () => {
     scannerJsonPaths: [],
     diffFile: undefined,
     outDir,
-    failOn: 'never'
+    failOn: 'never',
+    runSemgrep: false
   });
 
   assert.equal(summary.artifacts.llmReview, undefined);

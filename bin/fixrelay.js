@@ -21,6 +21,8 @@ function usage() {
     '  --pr-body <text>        Pull request body for report context.',
     '  --protected-path <path> Protected path prefix. Can be repeated.',
     '  --package-manager <pm>  npm, pnpm, yarn, python, go, or generic.',
+    '  --no-semgrep            Skip automatic Semgrep scan even when no --sarif is provided.',
+    '  --semgrep-config <cfg>  Semgrep --config value. Defaults to auto.',
     '  --post-comment          Post report with gh pr comment when available.',
     '  --llm-review            Enable LLM triage pass (requires LLM_API_KEY env var).',
     '  --llm-endpoint <url>    OpenAI-compatible endpoint base URL.',
@@ -90,6 +92,11 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--package-manager') {
       options.packageManager = readOption(args, index, arg);
+      index += 1;
+    } else if (arg === '--no-semgrep') {
+      options.runSemgrep = false;
+    } else if (arg === '--semgrep-config') {
+      options.semgrepConfig = readOption(args, index, arg);
       index += 1;
     } else if (arg === '--post-comment') {
       options.postComment = true;

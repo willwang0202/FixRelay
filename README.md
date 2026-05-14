@@ -79,6 +79,38 @@ with:
   scope: entire-repo
 ```
 
+## Built-in Semgrep Audit
+
+When no `--sarif` or `--scanner-json` input is provided, FixRelay automatically
+runs `semgrep scan --config auto` and uses the output as its finding source.
+This gives you a zero-config security gate with no extra workflow steps.
+
+**Semgrep must be installed.** If it is not on PATH, FixRelay logs a warning and
+produces a zero-finding report — it never hard-fails because Semgrep is missing.
+
+To disable the automatic scan and produce a report from no input:
+
+```bash
+node bin/fixrelay.js generate --no-semgrep --out-dir fixrelay-out
+```
+
+To use a specific ruleset instead of `auto`:
+
+```bash
+node bin/fixrelay.js generate --semgrep-config p/owasp-top-ten --out-dir fixrelay-out
+```
+
+In the GitHub Action, the same behaviour applies. Set `run-semgrep: false` to
+disable it, or override the ruleset with `semgrep-config`:
+
+```yaml
+- name: Run FixRelay
+  uses: willwang0202/FixRelay@v0
+  with:
+    run-semgrep: false   # bring your own scanner output via sarif:
+    sarif: my-scanner.sarif
+```
+
 ## Local Usage
 
 Run from this repository:

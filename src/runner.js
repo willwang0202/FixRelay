@@ -6,6 +6,7 @@ const { annotateFindings, applyScannerFileFallback, parseUnifiedDiff } = require
 const { loadFindingsFromSarif, loadFindingsFromScannerJson, serializeFinding } = require('./findings.js');
 const { runLlmReview } = require('./llm/review.js');
 const { DEFAULT_PROTECTED_PATHS } = require('./paths.js');
+const { runSemgrep, semgrepAvailable } = require('./scanner.js');
 const { generateReport } = require('./report.js');
 const { scoreRisk, shouldFail } = require('./risk.js');
 const { generateAgentTasks, generatePromptBundle } = require('./tasks.js');
@@ -67,10 +68,33 @@ function readDiff(options) {
 }
 
 async function runFixRelay(options = {}) {
-  const sarifPaths = options.sarifPaths || [];
+  const sarifPaths = [...(options.sarifPaths || [])];
   const scannerJsonPaths = options.scannerJsonPaths || [];
   const findings = [];
   const scope = normalizeScope(options.scope);
+
+  const runSemgrepScan = options.runSemgrep !== false;
+  const noExplicitFindings = sarifPaths.length === 0 && scannerJsonPaths.length === 0;
+  if (runSemgrepScan && noExplicitFindings) {
+    const cwd = options.cwd || process.cwd();
+    const outDir = options.outDir || 'fixrelay-out';
+    if (semgrepAvailable(options._spawn)) {
+      process.stderr.write('FixRelay: running Semgrep free audit (--config auto)...\n');
+      const result = runSemgrep({
+        cwd,
+        config: options.semgrepConfig || 'auto',
+        outDir,
+        _spawn: options._spawn
+      });
+      if (result.ok) {
+        sarifPaths.push(result.sarifPath);
+      } else {
+        process.stderr.write(`FixRelay warning: Semgrep scan failed — ${result.error}. Proceeding without scanner input.\n`);
+      }
+    } else {
+      process.stderr.write('FixRelay: Semgrep not found on PATH. Install it or pass --sarif/--scanner-json explicitly.\n');
+    }
+  }
 
   for (const sarifPath of sarifPaths) {
     findings.push(...loadFindingsFromSarif(readJsonFile(sarifPath), sarifPath));

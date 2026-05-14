@@ -29,6 +29,8 @@ function parseActionInputs(env = process.env) {
   const protectedPaths = splitList(getInput(env, 'protected-paths'));
   const llmReview = boolInput(getInput(env, 'llm-review'), false);
   const options = {
+    runSemgrep: boolInput(getInput(env, 'run-semgrep'), true),
+    semgrepConfig: getInput(env, 'semgrep-config') || 'auto',
     sarifPaths: splitList(getInput(env, 'sarif')),
     scannerJsonPaths: splitList(getInput(env, 'scanner-json')),
     diff: getInput(env, 'diff') || undefined,

@@ -1,6 +1,14 @@
 name: FixRelay
 description: "Turn security scanner findings into merge-risk summaries and AI-agent-ready fix prompts."
 inputs:
+  run-semgrep:
+    description: "Run Semgrep free audit automatically when no sarif or scanner-json inputs are provided."
+    required: false
+    default: 'true'
+  semgrep-config:
+    description: "Semgrep config to pass to --config. Defaults to auto."
+    required: false
+    default: 'auto'
   sarif:
     description: "Newline or comma separated SARIF files to load."
     required: false
