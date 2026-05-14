@@ -44,7 +44,7 @@ jobs:
         run: semgrep scan --config auto --sarif --output semgrep.sarif || true
 
       - name: Run FixRelay
-        uses: willwang0202/FixRelay@main
+        uses: willwang0202/FixRelay@v0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -62,8 +62,8 @@ jobs:
 
 This is the same setup tested against a private repository. On an empty PR,
 FixRelay posts a low-risk comment when Semgrep finds only pre-existing issues
-outside the PR diff. For production, prefer pinning `uses:` to a tag or commit
-SHA once you choose a stable FixRelay version.
+outside the PR diff. Pin `uses:` to a commit SHA for maximum stability, or use
+`@v0` to receive backwards-compatible patch updates automatically.
 
 If the check passes but no PR comment appears, open the target repository's
 GitHub settings and confirm Actions can use read/write workflow permissions.
@@ -153,7 +153,7 @@ jobs:
         run: semgrep scan --config auto --sarif --output semgrep.sarif || true
 
       - name: Run FixRelay
-        uses: willwang0202/FixRelay@main
+        uses: willwang0202/FixRelay@v0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -241,6 +241,21 @@ Decisions:
 - `allow`: low risk.
 - `warn`: medium risk.
 - `block`: high or critical risk.
+
+## Limitations
+
+- **FixRelay is not a scanner.** It reads existing scanner artifacts (SARIF,
+  generic JSON) and does not find vulnerabilities itself.
+- **It only interprets scanner artifacts.** The quality of FixRelay's risk
+  assessment is bounded by the quality and coverage of the scanner you run
+  before it.
+- **`scope: pr` filters by changed files, not exact vulnerability introduction.**
+  A finding is included when its file appears in the diff. FixRelay cannot
+  determine whether the vulnerability was introduced by the PR or was
+  pre-existing in that file.
+- **BUSL-1.1 license.** FixRelay is not open-source. Internal and personal use
+  is permitted. Providing it as a hosted or managed service to third parties
+  requires a commercial license.
 
 ## Privacy Posture
 

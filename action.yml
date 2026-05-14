@@ -58,6 +58,9 @@ outputs:
     description: "Absolute path to normalized-findings.json."
   prompt:
     description: "Absolute path to prompt.md."
+branding:
+  icon: shield
+  color: red
 runs:
   using: node20
   main: github-action/index.js
