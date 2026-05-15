@@ -158,6 +158,33 @@ test('runFixRelay continues gracefully when Semgrep is not on PATH', async () =>
   assert.ok(fs.existsSync(summary.artifacts.report));
 });
 
+test('runFixRelay sets scannerWarning when Semgrep is not on PATH', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-no-semgrep-warn-'));
+  const outDir = path.join(tmp, 'out');
+  const fakeSpawn = () => ({ status: null, error: new Error('ENOENT'), stdout: '', stderr: '' });
+
+  const summary = await runFixRelay({ sarifPaths: [], scannerJsonPaths: [], outDir, failOn: 'never', _spawn: fakeSpawn });
+  assert.ok(typeof summary.scannerWarning === 'string');
+  assert.match(summary.scannerWarning, /Semgrep is not installed/);
+  const report = fs.readFileSync(summary.artifacts.report, 'utf8');
+  assert.match(report, /Warning.*Semgrep is not installed/);
+});
+
+test('runFixRelay sets scannerWarning when Semgrep scan fails', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-scan-fail-warn-'));
+  const outDir = path.join(tmp, 'out');
+  const fakeSpawn = (cmd, args) => {
+    if (args && args[0] === '--version') return { status: 0, stdout: 'semgrep 1.0.0', stderr: '' };
+    return { status: 3, stdout: '', stderr: 'fatal error' };
+  };
+
+  const summary = await runFixRelay({ sarifPaths: [], scannerJsonPaths: [], outDir, failOn: 'never', _spawn: fakeSpawn });
+  assert.ok(typeof summary.scannerWarning === 'string');
+  assert.match(summary.scannerWarning, /Semgrep scan failed/);
+  const report = fs.readFileSync(summary.artifacts.report, 'utf8');
+  assert.match(report, /Warning.*Semgrep scan failed/);
+});
+
 test('runFixRelay continues gracefully when Semgrep scan fails', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-scan-fail-'));
   const outDir = path.join(tmp, 'out');

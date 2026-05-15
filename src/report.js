@@ -51,6 +51,7 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     `Score: ${risk.score}`,
     options.prTitle ? `PR: ${options.prTitle}` : '',
     '',
+    ...(options.scannerWarning ? [`> **Warning:** ${options.scannerWarning}`, ''] : []),
     '## Why',
     ...risk.reasons.map((reason) => `- ${reason}`),
     '',

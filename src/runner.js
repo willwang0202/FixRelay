@@ -75,6 +75,7 @@ async function runFixRelay(options = {}) {
 
   const runSemgrepScan = options.runSemgrep !== false;
   const noExplicitFindings = sarifPaths.length === 0 && scannerJsonPaths.length === 0;
+  let scannerWarning = null;
   if (runSemgrepScan && noExplicitFindings) {
     const cwd = options.cwd || process.cwd();
     const outDir = options.outDir || 'fixrelay-out';
@@ -89,10 +90,12 @@ async function runFixRelay(options = {}) {
       if (result.ok) {
         sarifPaths.push(result.sarifPath);
       } else {
-        process.stderr.write(`FixRelay warning: Semgrep scan failed — ${result.error}. Proceeding without scanner input.\n`);
+        scannerWarning = `Semgrep scan failed (${result.error}). No findings were loaded — results may not reflect actual risk.`;
+        process.stderr.write(`FixRelay warning: ${scannerWarning}\n`);
       }
     } else {
-      process.stderr.write('FixRelay: Semgrep not found on PATH. Install it or pass --sarif/--scanner-json explicitly.\n');
+      scannerWarning = 'Semgrep is not installed. No scanner was run — results may not reflect actual risk. Install Semgrep or pass --sarif/--scanner-json explicitly.';
+      process.stderr.write(`FixRelay warning: ${scannerWarning}\n`);
     }
   }
 
@@ -155,7 +158,8 @@ async function runFixRelay(options = {}) {
     prBody: options.prBody,
     scope,
     totalFindingCount: findings.length,
-    llmReview: llmReviewResult
+    llmReview: llmReviewResult,
+    scannerWarning
   });
   const prompt = generatePromptBundle(tasks, { emptyMessage: emptyPromptMessage });
   const normalizedFindings = annotatedFindings.map(serializeFinding);
@@ -181,6 +185,7 @@ async function runFixRelay(options = {}) {
     risk,
     decision: risk.decision,
     shouldFail: shouldFail(risk.level, options.failOn),
+    ...(scannerWarning ? { scannerWarning } : {}),
     artifacts
   };
 
