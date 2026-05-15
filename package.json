@@ -1,7 +1,7 @@
 {
   "name": "fixrelay",
-  "version": "0.1.0",
-  "description": "Turn security scanner findings into merge-risk summaries and AI-agent-ready fix prompts.",
+  "version": "0.2.1",
+  "description": "Score PR merge risk from scanner findings and generate AI fix prompts.",
   "main": "src/index.js",
   "bin": {
     "fixrelay": "bin/fixrelay.js"
@@ -16,7 +16,7 @@
     "ai-agent",
     "pull-request"
   ],
-  "author": "",
+  "author": "Will Wang <willwang22@gmail.com>",
   "license": "BUSL-1.1",
   "engines": {
     "node": ">=20"
