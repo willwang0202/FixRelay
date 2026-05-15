@@ -1,6 +1,6 @@
 {
   "name": "fixrelay",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Score PR merge risk from scanner findings and generate AI fix prompts.",
   "main": "src/index.js",
   "bin": {
