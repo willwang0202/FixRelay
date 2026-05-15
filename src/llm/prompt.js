@@ -56,8 +56,7 @@ function buildReviewMessages({ findings, snippets, prTitle }) {
   });
 
   const userLines = [
-    prTitle ? `PR: ${prTitle}` : '',
-    prTitle ? '' : '',
+    ...(prTitle ? [`PR: ${prTitle}`, ''] : []),
     ...findingBlocks,
     '',
     'Return the JSON object now. Do not include any explanation outside the JSON.'

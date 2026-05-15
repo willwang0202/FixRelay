@@ -115,9 +115,10 @@ function githubRequest({ method, urlPath, token, body, apiUrl = 'https://api.git
   });
 }
 
+const MAX_COMMENT_PAGES = 50;
+
 async function findExistingComment({ token, repository, issueNumber, apiUrl, request }) {
-  let page = 1;
-  while (true) {
+  for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
     const comments = await request({
       method: 'GET',
       urlPath: `/repos/${repository}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
@@ -128,8 +129,8 @@ async function findExistingComment({ token, repository, issueNumber, apiUrl, req
     const found = findExistingFixRelayComment(comments);
     if (found) return found;
     if (comments.length < 100) return undefined;
-    page += 1;
   }
+  return undefined;
 }
 
 async function upsertPullRequestComment({
@@ -163,7 +164,12 @@ function readEvent(env = process.env) {
   if (!env.GITHUB_EVENT_PATH || !fs.existsSync(env.GITHUB_EVENT_PATH)) {
     return {};
   }
-  return JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
+  } catch {
+    process.stderr.write('FixRelay warning: could not parse GITHUB_EVENT_PATH; proceeding without event context.\n');
+    return {};
+  }
 }
 
 function writeOutput(name, value, env = process.env) {

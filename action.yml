@@ -87,7 +87,7 @@ outputs:
   prompt:
     description: "Absolute path to prompt.md."
   llm-review-artifact:
-    description: "Absolute path to llm-review.json. Only set when llm-review is true and the call succeeds."
+    description: "Absolute path to llm-review.json. Set when llm-review is true and the LLM call runs (status ok or failed); not set when LLM review is skipped."
 branding:
   icon: shield
   color: red

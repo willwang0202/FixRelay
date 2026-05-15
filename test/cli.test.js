@@ -163,5 +163,5 @@ test('CLI generate reports configuration error for invalid fail-on threshold', (
   });
 
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /Invalid fail-on threshold: severe/);
+  assert.match(result.stderr, /Invalid fail-on.*severe/);
 });

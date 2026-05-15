@@ -13,11 +13,12 @@ const DEFAULT_PROTECTED_PATHS = [
 ];
 
 function normalizePath(value) {
-  return String(value || '')
+  const stripped = String(value || '')
     .replace(/^file:\/\//, '')
     .replace(/\\/g, '/')
     .replace(/^\.?\//, '')
     .replace(/^[ab]\//, '');
+  return path.posix.normalize(stripped).replace(/^\.\//, '');
 }
 
 function isTestPath(file) {

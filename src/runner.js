@@ -50,11 +50,15 @@ function selectFindingsForScope(findings, diffContext, scope) {
 function readDiff(options) {
   if (options.diffFile) return fs.readFileSync(options.diffFile, 'utf8');
   if (options.diff) {
-    return cp.execFileSync('git', ['diff', '--unified=0', options.diff], {
-      cwd: options.cwd || process.cwd(),
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore']
-    });
+    try {
+      return cp.execFileSync('git', ['diff', '--unified=0', options.diff], {
+        cwd: options.cwd || process.cwd(),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      });
+    } catch (err) {
+      throw new Error(`git diff "${options.diff}" failed: ${err.message}`);
+    }
   }
   try {
     return cp.execFileSync('git', ['diff', '--unified=0', 'HEAD'], {
@@ -67,7 +71,14 @@ function readDiff(options) {
   }
 }
 
+const VALID_FAIL_ON = new Set(['never', 'unknown', 'low', 'medium', 'high', 'critical']);
+
 async function runFixRelay(options = {}) {
+  const failOn = options.failOn || 'never';
+  if (!VALID_FAIL_ON.has(failOn)) {
+    throw new Error(`Invalid fail-on value: "${failOn}". Must be one of: ${[...VALID_FAIL_ON].join(', ')}`);
+  }
+
   const sarifPaths = [...(options.sarifPaths || [])];
   const scannerJsonPaths = options.scannerJsonPaths || [];
   const findings = [];
