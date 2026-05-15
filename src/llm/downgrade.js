@@ -13,6 +13,7 @@ function stepDown(level) {
 }
 
 function downgradeRisk(risk, reviewSummary) {
+  if (risk.level === 'unknown') return risk;
   if (!reviewSummary.allFalsePositive) return risk;
 
   const newLevel = stepDown(risk.level);

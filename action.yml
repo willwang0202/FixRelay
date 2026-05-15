@@ -30,7 +30,7 @@ inputs:
     required: false
     default: fixrelay-out
   fail-on:
-    description: "Risk threshold that fails the check: low, medium, high, critical, or never."
+    description: "Risk threshold that fails the check: low, medium, high, critical, unknown, or never."
     required: false
     default: high
   post-comment:

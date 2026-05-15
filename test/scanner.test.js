@@ -158,19 +158,22 @@ test('runFixRelay continues gracefully when Semgrep is not on PATH', async () =>
   assert.ok(fs.existsSync(summary.artifacts.report));
 });
 
-test('runFixRelay sets scannerWarning when Semgrep is not on PATH', async () => {
+test('runFixRelay sets risk unknown when Semgrep is not on PATH', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-no-semgrep-warn-'));
   const outDir = path.join(tmp, 'out');
   const fakeSpawn = () => ({ status: null, error: new Error('ENOENT'), stdout: '', stderr: '' });
 
   const summary = await runFixRelay({ sarifPaths: [], scannerJsonPaths: [], outDir, failOn: 'never', _spawn: fakeSpawn });
+  assert.equal(summary.risk.level, 'unknown');
+  assert.equal(summary.risk.decision, 'warn');
   assert.ok(typeof summary.scannerWarning === 'string');
   assert.match(summary.scannerWarning, /Semgrep is not installed/);
   const report = fs.readFileSync(summary.artifacts.report, 'utf8');
-  assert.match(report, /Warning.*Semgrep is not installed/);
+  assert.match(report, /Merge Risk: Unknown/);
+  assert.match(report, /Risk could not be assessed/);
 });
 
-test('runFixRelay sets scannerWarning when Semgrep scan fails', async () => {
+test('runFixRelay sets risk unknown when Semgrep scan fails', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-scan-fail-warn-'));
   const outDir = path.join(tmp, 'out');
   const fakeSpawn = (cmd, args) => {
@@ -179,10 +182,46 @@ test('runFixRelay sets scannerWarning when Semgrep scan fails', async () => {
   };
 
   const summary = await runFixRelay({ sarifPaths: [], scannerJsonPaths: [], outDir, failOn: 'never', _spawn: fakeSpawn });
+  assert.equal(summary.risk.level, 'unknown');
   assert.ok(typeof summary.scannerWarning === 'string');
   assert.match(summary.scannerWarning, /Semgrep scan failed/);
   const report = fs.readFileSync(summary.artifacts.report, 'utf8');
-  assert.match(report, /Warning.*Semgrep scan failed/);
+  assert.match(report, /Merge Risk: Unknown/);
+});
+
+test('shouldFail returns true for unknown when fail-on is unknown', () => {
+  const { shouldFail } = require('../src/risk.js');
+  assert.equal(shouldFail('unknown', 'unknown'), true);
+});
+
+test('shouldFail returns false for unknown when fail-on is low', () => {
+  const { shouldFail } = require('../src/risk.js');
+  assert.equal(shouldFail('unknown', 'low'), false);
+});
+
+test('shouldFail returns false for unknown when fail-on is high', () => {
+  const { shouldFail } = require('../src/risk.js');
+  assert.equal(shouldFail('unknown', 'high'), false);
+});
+
+test('shouldFail returns false for unknown when fail-on is never', () => {
+  const { shouldFail } = require('../src/risk.js');
+  assert.equal(shouldFail('unknown', 'never'), false);
+});
+
+test('unknownRisk returns correct shape', () => {
+  const { unknownRisk } = require('../src/risk.js');
+  const risk = unknownRisk('no scanner ran');
+  assert.equal(risk.level, 'unknown');
+  assert.equal(risk.decision, 'warn');
+  assert.equal(risk.score, 0);
+  assert.deepEqual(risk.reasons, ['no scanner ran']);
+});
+
+test('unknownRisk throws on empty reason', () => {
+  const { unknownRisk } = require('../src/risk.js');
+  assert.throws(() => unknownRisk(''), /non-empty reason/);
+  assert.throws(() => unknownRisk(null), /non-empty reason/);
 });
 
 test('runFixRelay continues gracefully when Semgrep scan fails', async () => {

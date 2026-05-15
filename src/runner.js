@@ -8,7 +8,7 @@ const { runLlmReview } = require('./llm/review.js');
 const { DEFAULT_PROTECTED_PATHS } = require('./paths.js');
 const { runSemgrep, semgrepAvailable } = require('./scanner.js');
 const { generateReport } = require('./report.js');
-const { scoreRisk, shouldFail } = require('./risk.js');
+const { scoreRisk, shouldFail, unknownRisk } = require('./risk.js');
 const { generateAgentTasks, generatePromptBundle } = require('./tasks.js');
 
 const DEFAULT_SCOPE = 'pr';
@@ -94,7 +94,7 @@ async function runFixRelay(options = {}) {
         process.stderr.write(`FixRelay warning: ${scannerWarning}\n`);
       }
     } else {
-      scannerWarning = 'Semgrep is not installed. No scanner was run — results may not reflect actual risk. Install Semgrep or pass --sarif/--scanner-json explicitly.';
+      scannerWarning = 'Semgrep is not installed and no scanner input was provided. Risk cannot be assessed — install Semgrep or pass --sarif/--scanner-json explicitly.';
       process.stderr.write(`FixRelay warning: ${scannerWarning}\n`);
     }
   }
@@ -112,11 +112,13 @@ async function runFixRelay(options = {}) {
     diffContext = applyScannerFileFallback(diffContext, findings);
   }
   const scopedFindings = selectFindingsForScope(findings, diffContext, scope);
-  let risk = scoreRisk(scopedFindings, diffContext, {
-    protectedPaths: options.protectedPaths || DEFAULT_PROTECTED_PATHS,
-    scope,
-    totalFindingCount: findings.length
-  });
+  let risk = scannerWarning && findings.length === 0
+    ? unknownRisk(scannerWarning)
+    : scoreRisk(scopedFindings, diffContext, {
+      protectedPaths: options.protectedPaths || DEFAULT_PROTECTED_PATHS,
+      scope,
+      totalFindingCount: findings.length
+    });
 
   const outDir = options.outDir || 'fixrelay-out';
   fs.mkdirSync(outDir, { recursive: true });

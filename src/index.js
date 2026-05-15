@@ -21,7 +21,7 @@ const {
   normalizePath
 } = require('./paths.js');
 const { generateReport } = require('./report.js');
-const { RISK_ORDER, scoreRisk, shouldFail, titleCase } = require('./risk.js');
+const { RISK_ORDER, scoreRisk, shouldFail, titleCase, unknownRisk } = require('./risk.js');
 const { DEFAULT_SCOPE, normalizeScope, readDiff, readJsonFile, runFixRelay, selectFindingsForScope } = require('./runner.js');
 const {
   generateAgentTasks,
@@ -66,5 +66,6 @@ module.exports = {
   summarizeVerdicts,
   taskPrompt,
   titleCase,
+  unknownRisk,
   validationCommands
 };

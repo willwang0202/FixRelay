@@ -1,6 +1,8 @@
 const { DEFAULT_PROTECTED_PATHS, isProtectedPath } = require('./paths.js');
 
 const RISK_ORDER = ['low', 'medium', 'high', 'critical'];
+// 'unknown' is a sentinel — no scanner ran, risk cannot be assessed.
+// It sits outside RISK_ORDER so threshold comparisons don't apply to it.
 
 function severityPoints(severity) {
   return {
@@ -14,6 +16,16 @@ function severityPoints(severity) {
 function titleCase(value) {
   const text = String(value || 'low');
   return text.slice(0, 1).toUpperCase() + text.slice(1);
+}
+
+function unknownRisk(reason) {
+  if (!reason) throw new Error('unknownRisk requires a non-empty reason');
+  return {
+    score: 0,
+    level: 'unknown',
+    decision: 'warn',
+    reasons: [String(reason)]
+  };
 }
 
 function riskLevel(score, findings) {
@@ -97,6 +109,8 @@ function scoreRisk(findings, diffContext, options = {}) {
 
 function shouldFail(level, failOn = 'never') {
   if (!failOn || failOn === 'never') return false;
+  if (level === 'unknown') return failOn === 'unknown';
+  if (failOn === 'unknown') return false;
   if (!RISK_ORDER.includes(failOn)) {
     throw new Error(`Invalid fail-on threshold: ${failOn}`);
   }
@@ -110,5 +124,6 @@ module.exports = {
   RISK_ORDER,
   scoreRisk,
   shouldFail,
-  titleCase
+  titleCase,
+  unknownRisk
 };

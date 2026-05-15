@@ -27,7 +27,9 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
   const heading = `Merge Risk: ${titleCase(risk.level)}`;
   const decisionText = {
     allow: 'This PR can proceed from the loaded scanner context.',
-    warn: 'This PR should be reviewed before merge.',
+    warn: risk.level === 'unknown'
+      ? 'Risk could not be assessed — no scanner output was loaded.'
+      : 'This PR should be reviewed before merge.',
     block: 'This PR should not be merged until the security finding is fixed.'
   }[risk.decision];
   const noFindingsText = options.scope === 'pr' && options.totalFindingCount > 0
@@ -48,10 +50,14 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     '',
     decisionText,
     '',
-    `Score: ${risk.score}`,
+    risk.level === 'unknown' ? 'Score: N/A' : `Score: ${risk.score}`,
     options.prTitle ? `PR: ${options.prTitle}` : '',
     '',
-    ...(options.scannerWarning ? [`> **Warning:** ${options.scannerWarning}`, ''] : []),
+    // Show warning banner when a scan failure occurred but findings from other sources
+    // were still loaded (risk is not 'unknown' — the heading already communicates that).
+    ...(options.scannerWarning && risk.level !== 'unknown'
+      ? [`> **Warning:** ${options.scannerWarning}`, '']
+      : []),
     '## Why',
     ...risk.reasons.map((reason) => `- ${reason}`),
     '',
@@ -60,9 +66,11 @@ function generateReport(findings, diffContext, risk, tasks, options = {}) {
     ...(topFindings.length > 0 ? topFindings : [noFindingsText]),
     '',
     '## Recommended Action',
-    risk.decision === 'allow'
-      ? 'Continue normal review and keep scanner artifacts attached to CI.'
-      : 'Fix the finding, add or update regression tests, and rerun the scanner before merge.',
+    risk.level === 'unknown'
+      ? 'Install Semgrep or attach scanner output (--sarif / --scanner-json) and rerun FixRelay before merging.'
+      : risk.decision === 'allow'
+        ? 'Continue normal review and keep scanner artifacts attached to CI.'
+        : 'Fix the finding, add or update regression tests, and rerun the scanner before merge.',
     '',
     '## AI Agent Fix Prompt',
     '',

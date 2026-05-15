@@ -15,7 +15,7 @@ function usage() {
     '  --diff <range>          Git diff range, such as origin/main...HEAD.',
     '  --diff-file <file>      Unified diff file.',
     '  --out-dir <dir>         Artifact directory. Defaults to fixrelay-out.',
-    '  --fail-on <level>       low, medium, high, critical, or never.',
+    '  --fail-on <level>       low, medium, high, critical, unknown, or never.',
     '  --scope <scope>         pr or entire-repo. Defaults to pr.',
     '  --pr-title <text>       Pull request title for report context.',
     '  --pr-body <text>        Pull request body for report context.',
