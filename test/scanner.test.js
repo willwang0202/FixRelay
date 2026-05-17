@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { runSemgrep, semgrepAvailable } = require('../src/scanner.js');
+const { runSemgrep, runSemgrepOnFiles, semgrepAvailable } = require('../src/scanner.js');
 const { runFixRelay } = require('../src/runner.js');
 
 // --- semgrepAvailable ---
@@ -235,4 +235,70 @@ test('runFixRelay continues gracefully when Semgrep scan fails', async () => {
   const summary = await runFixRelay({ sarifPaths: [], scannerJsonPaths: [], outDir, failOn: 'never', _spawn: fakeSpawn });
   assert.equal(summary.findingCount, 0);
   assert.ok(fs.existsSync(summary.artifacts.report));
+});
+
+// --- runSemgrepOnFiles ---
+
+test('runSemgrepOnFiles returns skipped:true when files array is empty', () => {
+  const fakeSpawn = () => { throw new Error('Should not be called'); };
+  const result = runSemgrepOnFiles({ files: [], _spawn: fakeSpawn });
+  assert.equal(result.ok, true);
+  assert.equal(result.skipped, true);
+  assert.equal(result.sarifPath, null);
+});
+
+test('runSemgrepOnFiles passes file paths as trailing args to semgrep', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-onfiles-'));
+  const outDir = path.join(tmp, 'out');
+  let capturedArgs;
+  const fakeSpawn = (_cmd, args) => {
+    capturedArgs = args;
+    fs.mkdirSync(outDir, { recursive: true });
+    const sarifPath = args[args.indexOf('--output') + 1];
+    fs.writeFileSync(sarifPath, makeSarif(0));
+    return { status: 0, stdout: '', stderr: '' };
+  };
+
+  runSemgrepOnFiles({ files: ['src/auth.js', 'lib/utils.js'], outDir, _spawn: fakeSpawn });
+  assert.ok(capturedArgs.includes('src/auth.js'));
+  assert.ok(capturedArgs.includes('lib/utils.js'));
+  // Should NOT include --no-git-ignore (whole-repo flag not needed for file list)
+  assert.ok(!capturedArgs.includes('--no-git-ignore'));
+});
+
+test('runSemgrepOnFiles returns ok:true and sarifPath when semgrep exits 0', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-onfiles-ok-'));
+  const outDir = path.join(tmp, 'out');
+  const fakeSpawn = (_cmd, args) => {
+    fs.mkdirSync(outDir, { recursive: true });
+    const sarifPath = args[args.indexOf('--output') + 1];
+    fs.writeFileSync(sarifPath, makeSarif(1));
+    return { status: 0, stdout: '', stderr: '' };
+  };
+
+  const result = runSemgrepOnFiles({ files: ['src/auth.js'], outDir, _spawn: fakeSpawn });
+  assert.equal(result.ok, true);
+  assert.ok(result.sarifPath.endsWith('semgrep-staged.sarif'));
+});
+
+test('runSemgrepOnFiles returns ok:false when semgrep exits 2', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-onfiles-err-'));
+  const fakeSpawn = () => ({ status: 2, stdout: '', stderr: 'config error' });
+  const result = runSemgrepOnFiles({ cwd: tmp, files: ['src/auth.js'], _spawn: fakeSpawn });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /exited with code 2/);
+});
+
+test('runSemgrepOnFiles treats exit 1 (findings present) as ok', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fixrelay-onfiles-exit1-'));
+  const outDir = path.join(tmp, 'out');
+  const fakeSpawn = (_cmd, args) => {
+    fs.mkdirSync(outDir, { recursive: true });
+    const sarifPath = args[args.indexOf('--output') + 1];
+    fs.writeFileSync(sarifPath, makeSarif(2));
+    return { status: 1, stdout: '', stderr: '' };
+  };
+
+  const result = runSemgrepOnFiles({ files: ['src/auth.js'], outDir, _spawn: fakeSpawn });
+  assert.equal(result.ok, true);
 });
